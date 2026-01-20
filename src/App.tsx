@@ -36,21 +36,26 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rota inicial (landing page) */}
-            <Route path="/" element={<Index />} />
-            
-            {/* Checkout e Thank You */}
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/thank-you" element={<ThankYou />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
+            {/* Rota inicial - Redireciona para login admin */}
+            <Route path="/" element={<Navigate to="/auth/admin-login" replace />} />
+
+            {/* Landing page comentada temporariamente */}
+            {/* <Route path="/landing" element={<Index />} /> */}
+
+            {/* Checkout e Thank You - Comentados temporariamente */}
+            {/* <Route path="/checkout" element={<Checkout />} /> */}
+            {/* <Route path="/thank-you" element={<ThankYou />} /> */}
+            {/* <Route path="/payment-success" element={<PaymentSuccess />} /> */}
             
             {/* Rotas de autenticação */}
             <Route path="/auth/admin-login" element={<Login />} />
             <Route path="/auth/student-login" element={<StudentLogin />} />
-            <Route path="/auth/login" element={<Navigate to="/auth/student-login" replace />} />
-            <Route path="/auth/signup" element={<Signup />} />
-            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-            <Route path="/auth/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/login" element={<Navigate to="/auth/admin-login" replace />} />
+
+            {/* Rotas comentadas temporariamente */}
+            {/* <Route path="/auth/signup" element={<Signup />} /> */}
+            {/* <Route path="/auth/forgot-password" element={<ForgotPassword />} /> */}
+            {/* <Route path="/auth/reset-password" element={<ResetPassword />} /> */}
             
             {/* Redirects antigos para nova rota */}
             <Route path="/admin/login" element={<Navigate to="/auth/admin-login" replace />} />
