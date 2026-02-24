@@ -32,7 +32,7 @@ export default function Signup() {
   // ONDE MUDAR: Adicionar validações personalizadas (ex: senha forte)
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validações básicas
     if (!formData.fullName || !formData.email || !formData.password) {
       toast({
@@ -77,14 +77,35 @@ export default function Signup() {
 
       if (error) throw error;
 
+      // Aguardar um pouco para garantir que o trigger criou o profile e role
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Atualizar a role para 'admin' automaticamente (cadastro administrativo)
+      if (data.user) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: 'admin' })
+          .eq('user_id', data.user.id);
+
+        if (roleError) {
+          console.error('Erro ao atualizar role:', roleError);
+          // Não falhar o cadastro por causa disso, mas avisar
+          toast({
+            variant: "destructive",
+            title: "Aviso",
+            description: "Conta criada, mas você precisará solicitar acesso admin ao suporte.",
+          });
+        }
+      }
+
       toast({
-        title: "Conta criada com sucesso!",
-        description: "Você já pode fazer login.",
+        title: "Conta de administrador criada!",
+        description: "Você já pode fazer login no painel administrativo.",
       });
 
-      // ONDE MUDAR: Redirecionar para onde após cadastro
-      navigate("/auth/login");
-      
+      // Redirecionar para login admin
+      navigate("/auth/admin-login");
+
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
       toast({
@@ -107,7 +128,7 @@ export default function Signup() {
               <UserPlus className="w-8 h-8 text-primary" />
             </div>
           </div>
-          
+
           <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>
           <CardDescription>
             Preencha os dados abaixo para começar
@@ -190,9 +211,9 @@ export default function Signup() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={loading}
             >
               {loading ? "Criando conta..." : "Criar conta"}

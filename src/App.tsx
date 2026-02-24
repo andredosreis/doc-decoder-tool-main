@@ -46,21 +46,21 @@ const App = () => (
             {/* <Route path="/checkout" element={<Checkout />} /> */}
             {/* <Route path="/thank-you" element={<ThankYou />} /> */}
             {/* <Route path="/payment-success" element={<PaymentSuccess />} /> */}
-            
+
             {/* Rotas de autenticação */}
             <Route path="/auth/admin-login" element={<Login />} />
             <Route path="/auth/student-login" element={<StudentLogin />} />
             <Route path="/auth/login" element={<Navigate to="/auth/admin-login" replace />} />
 
-            {/* Rotas comentadas temporariamente */}
-            {/* <Route path="/auth/signup" element={<Signup />} /> */}
-            {/* <Route path="/auth/forgot-password" element={<ForgotPassword />} /> */}
-            {/* <Route path="/auth/reset-password" element={<ResetPassword />} /> */}
-            
+            {/* Rotas de autenticação */}
+            <Route path="/auth/signup" element={<Signup />} />
+            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/reset-password" element={<ResetPassword />} />
+
             {/* Redirects antigos para nova rota */}
             <Route path="/admin/login" element={<Navigate to="/auth/admin-login" replace />} />
             <Route path="/app/login" element={<Navigate to="/auth/student-login" replace />} />
-            
+
             {/* Rotas Admin - Protegidas (somente admin) */}
             <Route path="/admin/*" element={
               <ProtectedRoute requiredRole="admin">
@@ -76,7 +76,7 @@ const App = () => (
                 </AdminLayout>
               </ProtectedRoute>
             } />
-            
+
             {/* Rotas do Aluno - Protegidas (somente user) */}
             <Route path="/student" element={
               <ProtectedRoute requiredRole="user">
@@ -98,7 +98,7 @@ const App = () => (
                 <StudentCertificate />
               </ProtectedRoute>
             } />
-            
+
             {/* 404 - Não encontrado */}
             <Route path="*" element={<NotFound />} />
           </Routes>
