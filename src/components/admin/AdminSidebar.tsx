@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { Logo } from "@/components/ui/Logo";
 
 const menuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
@@ -50,6 +51,9 @@ export function AdminSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
+          <div className="px-2 py-4">
+            <Logo size={32} variant="full" />
+          </div>
           <SidebarGroupLabel>
             Painel Admin
           </SidebarGroupLabel>

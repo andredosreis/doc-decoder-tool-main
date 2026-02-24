@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { BookOpen, LogOut, GraduationCap, TrendingUp, Award } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { StatsCard } from "@/components/student/StatsCard";
 import { CourseProgress } from "@/components/student/CourseProgress";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
@@ -140,6 +141,9 @@ export default function StudentDashboard() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
+              <div className="mb-1">
+                <Logo size={32} variant="full" />
+              </div>
               <h1 className="text-3xl font-bold flex items-center gap-2">
                 <GraduationCap className="h-8 w-8 text-primary" />
                 Meus Cursos

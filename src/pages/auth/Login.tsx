@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Shield, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -72,11 +73,9 @@ export default function Login() {
       <Card className="w-full max-w-md border-destructive/20">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center ring-4 ring-destructive/20">
-              <Shield className="w-10 h-10 text-destructive" />
-            </div>
+            <Logo size={48} variant="full" />
           </div>
-          
+
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-destructive to-destructive/60 bg-clip-text text-transparent">
             Área Administrativa
           </CardTitle>

@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -122,11 +123,8 @@ export default function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          {/* ONDE MUDAR: Logo da plataforma */}
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <UserPlus className="w-8 h-8 text-primary" />
-            </div>
+            <Logo size={48} variant="full" />
           </div>
 
           <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>

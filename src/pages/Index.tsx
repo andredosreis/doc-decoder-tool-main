@@ -12,6 +12,7 @@ import { FinalConversion } from "@/components/landing/FinalConversion";
 import { StickyCTA } from "@/components/landing/StickyCTA";
 import { TransformationDemo } from "@/components/landing/TransformationDemo";
 import { APP_CONFIG } from "@/config/app.config";
+import { Logo } from "@/components/ui/Logo";
 import { ArrowRight, Sparkles, Zap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -303,7 +304,9 @@ const Index = () => {
         <div className="container-app">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="font-bold text-xl mb-4 text-gradient">{APP_CONFIG.name}</h3>
+              <div className="mb-4">
+                <Logo size={32} variant="full" />
+              </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Transforme seu conhecimento em um aplicativo profissional sem código.
               </p>

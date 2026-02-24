@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -93,11 +94,9 @@ export default function ResetPassword() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-primary" />
-            </div>
+            <Logo size={40} variant="full" />
           </div>
-          
+
           <CardTitle className="text-2xl font-bold">Nova senha</CardTitle>
           <CardDescription>
             Digite sua nova senha para acessar a plataforma

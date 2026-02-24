@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { GraduationCap, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function StudentLogin() {
   const navigate = useNavigate();
@@ -61,11 +62,9 @@ export default function StudentLogin() {
       <Card className="w-full max-w-md border-primary/20">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center ring-4 ring-primary/20">
-              <GraduationCap className="w-10 h-10 text-primary" />
-            </div>
+            <Logo size={48} variant="full" />
           </div>
-          
+
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Área do Aluno
           </CardTitle>
