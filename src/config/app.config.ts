@@ -19,7 +19,7 @@ export const APP_CONFIG = {
   
   // URL base (mudar quando tiver domínio próprio)
   // ONDE MUDAR: Quando publicar, trocar para seu domínio
-  baseUrl: "https://seuapp.lovable.app",
+  baseUrl: import.meta.env.VITE_APP_URL || window.location.origin,
   
   // Email de suporte
   supportEmail: "suporte@docdecodertool.com",

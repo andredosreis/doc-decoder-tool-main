@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Users, Settings, LogOut, CreditCard } from "lucide-react";
+import { LayoutDashboard, Package, Users, Settings, LogOut, CreditCard, Webhook } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -21,6 +21,7 @@ const menuItems = [
   { title: "Clientes", url: "/admin/customers", icon: Users },
   { title: "Compras", url: "/admin/purchases", icon: CreditCard },
   { title: "Configurações", url: "/admin/settings", icon: Settings },
+  { title: "Webhooks", url: "/admin/webhooks", icon: Webhook },
 ];
 
 export function AdminSidebar() {

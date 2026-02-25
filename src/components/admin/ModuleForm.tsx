@@ -122,11 +122,6 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
   };
 
   const onSubmit = async (data: ModuleFormData) => {
-    console.log('📋 Dados do formulário:', data);
-    console.log('📄 Tipo selecionado:', data.type);
-    console.log('📎 PDF File:', pdfFile);
-    console.log('❗ Erros do formulário:', errors);
-    
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -143,16 +138,12 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
       let pdfUrl = module?.pdf_url;
 
       if (pdfFile) {
-        console.log('🔼 Iniciando upload do PDF...');
         pdfUrl = await uploadFile(pdfFile, 'pdfs');
-        console.log('✅ URL do PDF:', pdfUrl);
       }
 
       let thumbnailUrl = module?.thumbnail_url;
       if (thumbnailFile) {
-        console.log('🔼 Iniciando upload da thumbnail...');
         thumbnailUrl = await uploadFile(thumbnailFile, 'videos');
-        console.log('✅ URL da thumbnail:', thumbnailUrl);
       }
 
       const moduleData = {
@@ -169,8 +160,6 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
         is_preview: data.is_preview,
       };
 
-      console.log('💾 Dados a serem salvos:', moduleData);
-
       if (module) {
         const { error } = await supabase
           .from('modules')
@@ -184,13 +173,9 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
           description: "O módulo foi atualizado com sucesso.",
         });
       } else {
-        console.log('🆕 Criando novo módulo...');
-        const { error, data: result } = await supabase
+        const { error } = await supabase
           .from('modules')
-          .insert([moduleData])
-          .select();
-
-        console.log('📊 Resultado:', { error, result });
+          .insert([moduleData]);
 
         if (error) throw error;
 
@@ -202,7 +187,7 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
 
       onSuccess();
     } catch (error: any) {
-      console.error('❌ Erro ao salvar módulo:', error);
+      console.error('Erro ao salvar módulo:', error);
       toast({
         variant: "destructive",
         title: "Erro ao salvar módulo",
@@ -225,13 +210,9 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Título</Label>
-        <Input 
-          id="title" 
+        <Input
+          id="title"
           {...register("title")}
-          onChange={(e) => {
-            console.log('✏️ Campo título alterado:', e.target.value);
-            register("title").onChange(e);
-          }}
         />
         {errors.title && (
           <p className="text-sm text-destructive">{errors.title.message}</p>
@@ -404,12 +385,9 @@ export function ModuleForm({ productId, module, onSuccess, onCancel, nextOrderIn
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isLoading}
-          onClick={() => {
-            console.log('🔘 Botão clicado! Erros:', errors);
-          }}
         >
           {isLoading ? "Salvando..." : module ? "Atualizar Módulo" : "Criar Módulo"}
         </Button>

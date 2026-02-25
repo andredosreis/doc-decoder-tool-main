@@ -53,9 +53,15 @@ CREATE TABLE public.profiles (
   email TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
+  platform_name TEXT,
+  support_email TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Se já tiver a tabela criada, rode:
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS platform_name TEXT;
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS support_email TEXT;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 

@@ -45,7 +45,7 @@ Key tables and their ownership rules:
 | `certificates` | Generated on course completion; unique per `(user_id, product_id)` |
 
 ### Edge Functions (`supabase/functions/`)
-Serverless Deno functions for: payment webhook ingestion (`webhook-payment`), payment processing (`process-payment`), checkout creation (`create-checkout`), email confirmation (`send-purchase-confirmation`), notifications (`send-notification`), certificate PDF generation (`generate-certificate`), and password reset (`reset-user-password`).
+Serverless Deno functions for: payment webhook ingestion (`webhook-payment`), payment processing (`process-payment`), checkout creation (`create-checkout`), email confirmation (`send-purchase-confirmation`), notifications (`send-notification`), and certificate PDF generation (`generate-certificate`).
 
 Payment webhooks from Hotmart, Kiwify, and Monetizze all route through `webhook-payment`.
 

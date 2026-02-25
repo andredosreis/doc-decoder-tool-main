@@ -21,6 +21,7 @@ import AdminModules from "./pages/admin/Modules";
 import AdminCustomers from "./pages/admin/Customers";
 import AdminPurchases from "./pages/admin/Purchases";
 import AdminSettings from "./pages/admin/Settings";
+import AdminWebhookSetup from "./pages/admin/WebhookSetup";
 import StudentDashboard from "./pages/student/Dashboard";
 import StudentProductView from "./pages/student/ProductView";
 import StudentModuleView from "./pages/student/ModuleView";
@@ -72,6 +73,7 @@ const App = () => (
                     <Route path="customers" element={<AdminCustomers />} />
                     <Route path="purchases" element={<AdminPurchases />} />
                     <Route path="settings" element={<AdminSettings />} />
+                    <Route path="webhooks" element={<AdminWebhookSetup />} />
                   </Routes>
                 </AdminLayout>
               </ProtectedRoute>

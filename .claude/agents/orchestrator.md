@@ -49,10 +49,10 @@ Always state the classification explicitly at the start of the plan.
 2. **Understand** — read the full request, identify all affected layers
 3. **Plan** — list which agents are needed and in what order with explicit dependencies
 4. **DB first** — if schema changes are needed, run `db-migration-agent` before any other agent
-5. **Guard check** — if the feature involves multi-tenant data, run `multi-tenant-guard`
+5. **Guard check** — `multi-tenant-guard` runs on EVERY pipeline, no exceptions
 6. **Implement** — run `frontend-agent` and/or `backend-agent`
 7. **Review** — finish with `quality-agent` for non-trivial changes
-8. **Security** — run `security-agent` on any auth, payment, or data-exposure change
+8. **Security** — `security-agent` runs on EVERY pipeline, no exceptions
 
 ## Pipeline Dependencies (Formal)
 
@@ -60,14 +60,43 @@ These are hard ordering rules — never run a downstream agent before its depend
 
 ```
 db-migration-agent
-  └── multi-tenant-guard        (must PASS before frontend or backend proceed)
-      ├── frontend-agent
-      └── backend-agent
-            └── security-agent  (runs after implementation is complete)
+  └── multi-tenant-guard        (MANDATORY on every pipeline — must PASS before proceeding)
+      ├── frontend-agent  ─┐
+      └── backend-agent   ─┴── [PARALELO] rodam ao mesmo tempo quando ambos estão no escopo
+            └── security-agent  (MANDATORY on every pipeline — runs after implementation)
                   └── quality-agent
 ```
 
+> **REGRA ABSOLUTA:** `multi-tenant-guard` e `security-agent` são **obrigatórios em todos os pipelines**, sem exceção — independente da task class. Qualquer mudança de código, por menor que seja, passa por esses dois agentes. Auditar código em andamento produz falsos resultados, por isso sempre rodam após a implementação.
+
 `security-agent` and `multi-tenant-guard` always run **after** implementation — auditing in-progress code produces false results.
+
+## Parallel Execution Rules
+
+Maximize paralelismo onde as dependências permitem. Use múltiplos `Task` tool calls na **mesma mensagem** para rodar agentes simultaneamente.
+
+### O que pode rodar em paralelo
+
+| Grupo | Agentes | Condição |
+|-------|---------|----------|
+| Fase de implementação | `frontend-agent` + `backend-agent` | Ambos só após `multi-tenant-guard` PASS |
+| Fase de auditoria | `security-agent` + `quality-agent` | Ambos só após implementação completa |
+| Fase de exploração | Múltiplos reads/searches | Sempre — antes de qualquer escrita |
+
+### O que NUNCA roda em paralelo
+
+- `db-migration-agent` com qualquer outro agente que escreve código — schema primeiro, sempre
+- `multi-tenant-guard` com agentes de implementação — guard valida o que já foi feito
+- `security-agent` com agentes de implementação — mesma razão
+
+### Exemplo de pipeline com paralelismo
+
+```
+Passo 1 (sequencial): db-migration-agent
+Passo 2 (sequencial): multi-tenant-guard
+Passo 3 (PARALELO):   frontend-agent + backend-agent  ← mesma mensagem, 2 Task calls
+Passo 4 (PARALELO):   security-agent + quality-agent  ← mesma mensagem, 2 Task calls
+```
 
 ## Decision Rules
 
@@ -101,9 +130,55 @@ When an agent returns `BLOCK` (excluding `db-migration-agent`):
 
 Checkout and landing page routes are commented out in `App.tsx`. Do not uncomment without implementing the backend payment flow first.
 
+## Documentation Duty (Mandatory)
+
+The orchestrator is the **single source of truth** for all agent activity. After every pipeline run — successful or blocked — you MUST:
+
+1. **Write a Pipeline Report** to the user (see format below)
+2. **Append an entry** to `.claude/docs/AGENT_LOG.md` with the full record of what each agent did, what files were changed, and the final verdict
+
+### Appending to the log
+
+Use the Write or Edit tool to append to `.claude/docs/AGENT_LOG.md`. Each entry follows this template:
+
+```markdown
+---
+## [YYYY-MM-DD] <Short task title>
+
+**Class:** DB_CHANGE | UI_ONLY | PAYMENT | AUTH | SECURITY_PATCH | REFACTOR
+**Requested by:** user
+**Final verdict:** PASS | BLOCK
+
+### Agents invoked (in order)
+
+| Agent | Result | Summary |
+|-------|--------|---------|
+| db-migration-agent | PASS | Added `platform_name`, `support_email` columns to `profiles` |
+| frontend-agent | PASS | Updated Dashboard.tsx with real TanStack Query stats |
+| security-agent | PASS | No new issues introduced |
+| quality-agent | PASS | Removed 7 debug console.logs from ModuleForm.tsx |
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/pages/admin/Dashboard.tsx` | Replaced hardcoded stats with real queries |
+| `EXECUTAR_NO_SUPABASE.sql` | Added platform_name, support_email to profiles |
+
+### Findings & warnings
+
+- [MEDIUM] webhook-payment still lacks signature validation (pre-existing, tracked)
+
+### Notes
+
+Any relevant context, decisions made, or follow-up items.
+```
+
+If `.claude/docs/AGENT_LOG.md` does not exist yet, create it with a header before appending.
+
 ## Consolidated Output Format (Required)
 
-Every orchestration run MUST end with a Pipeline Report. No exceptions.
+Every orchestration run MUST end with a Pipeline Report shown to the user. No exceptions.
 
 ```
 PIPELINE REPORT
@@ -120,6 +195,8 @@ Quality      : PASS
 Final Decision: BLOCK
 Reason: security-agent reported [CRITICAL]. Pipeline halted after step 8.
 Next action: Fix webhook-payment signature validation, then re-run security-agent.
+
+Log entry written to: .claude/docs/AGENT_LOG.md
 ```
 
 If the pipeline completes with no blocks:
@@ -131,11 +208,15 @@ Task class : UI_ONLY
 Scope      : Add student progress bar component
 
 DB Migration : SKIPPED (not required for UI_ONLY)
-Isolation    : SKIPPED (no multi-tenant data access)
+Isolation    : PASS   (mandatory — no cross-tenant issues found)
 Backend      : SKIPPED (no Edge Function changes)
-Security     : SKIPPED (no auth or payment change)
+Security     : PASS   (mandatory — no vulnerabilities introduced)
 Quality      : PASS
 
 Final Decision: PASS
 All required checks passed. Feature is ready.
+
+Log entry written to: .claude/docs/AGENT_LOG.md
 ```
+
+> Nota: `Isolation` e `Security` nunca aparecem como SKIPPED — são sempre executados e reportados como PASS ou BLOCK.

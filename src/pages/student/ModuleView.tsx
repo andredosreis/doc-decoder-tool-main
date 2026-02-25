@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle, Download, ExternalLink, FileText } from "lucide-react";
+import DOMPurify from "dompurify";
 
 interface Module {
   id: string;
@@ -262,7 +263,7 @@ export default function StudentModuleView() {
 
           {module.type === 'text' && module.content_text && (
             <div className="prose prose-lg max-w-none dark:prose-invert">
-              <div dangerouslySetInnerHTML={{ __html: module.content_text }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(module.content_text) }} />
             </div>
           )}
 

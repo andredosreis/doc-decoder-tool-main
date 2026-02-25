@@ -1,19 +1,117 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Package, Users, DollarSign, TrendingUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+async function fetchDashboardStats(adminId: string) {
+  // 1. Total de produtos
+  const { count: productCount } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true })
+    .eq('admin_id', adminId);
+
+  // 2. IDs dos produtos deste admin
+  const { data: products } = await supabase
+    .from('products')
+    .select('id')
+    .eq('admin_id', adminId);
+
+  const productIds = products?.map(p => p.id) ?? [];
+
+  if (productIds.length === 0) {
+    return { productCount: productCount ?? 0, activeStudents: 0, monthlyRevenue: 0, completionRate: 0, recentPurchases: [] };
+  }
+
+  // 3. Alunos ativos (distinct user_id com compras aprovadas)
+  const { data: purchasesForStudents } = await supabase
+    .from('purchases')
+    .select('user_id')
+    .in('product_id', productIds)
+    .eq('status', 'approved');
+
+  const activeStudents = new Set(purchasesForStudents?.map(p => p.user_id)).size;
+
+  // 4. Receita do mês
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { data: monthlyPurchases } = await supabase
+    .from('purchases')
+    .select('amount_paid')
+    .in('product_id', productIds)
+    .eq('status', 'approved')
+    .gte('approved_at', startOfMonth.toISOString());
+
+  const monthlyRevenue = monthlyPurchases?.reduce((sum, p) => sum + (p.amount_paid ?? 0), 0) ?? 0;
+
+  // 5. Taxa de conclusão média
+  const { data: modules } = await supabase
+    .from('modules')
+    .select('id')
+    .in('product_id', productIds);
+
+  const moduleIds = modules?.map(m => m.id) ?? [];
+  let completionRate = 0;
+
+  if (moduleIds.length > 0) {
+    const { data: progress } = await supabase
+      .from('user_progress')
+      .select('progress_percentage')
+      .in('module_id', moduleIds);
+
+    if (progress && progress.length > 0) {
+      completionRate = progress.reduce((sum, p) => sum + (p.progress_percentage ?? 0), 0) / progress.length;
+    }
+  }
+
+  // 6. Atividade recente (últimas 5 compras)
+  const { data: recentPurchases } = await supabase
+    .from('purchases')
+    .select(`
+      id,
+      amount_paid,
+      status,
+      created_at,
+      user:profiles!purchases_user_id_fkey(full_name, email),
+      product:products(title)
+    `)
+    .in('product_id', productIds)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  return {
+    productCount: productCount ?? 0,
+    activeStudents,
+    monthlyRevenue,
+    completionRate,
+    recentPurchases: recentPurchases ?? [],
+  };
+}
 
 export default function AdminDashboard() {
-  const stats = [
+  const { user } = useAuth();
+
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats', user?.id],
+    queryFn: () => fetchDashboardStats(user!.id),
+    enabled: !!user,
+  });
+
+  const statCards = [
     {
       title: "Total de Produtos",
-      value: "0",
-      description: "Info produtos cadastrados",
+      value: isLoading ? null : String(stats?.productCount ?? 0),
+      description: "Produtos cadastrados",
       icon: Package,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       title: "Clientes Ativos",
-      value: "0",
+      value: isLoading ? null : String(stats?.activeStudents ?? 0),
       description: "Usuários com acesso",
       icon: Users,
       color: "text-green-600",
@@ -21,7 +119,7 @@ export default function AdminDashboard() {
     },
     {
       title: "Vendas do Mês",
-      value: "R$ 0",
+      value: isLoading ? null : `R$ ${(stats?.monthlyRevenue ?? 0).toFixed(2)}`,
       description: "Faturamento atual",
       icon: DollarSign,
       color: "text-yellow-600",
@@ -29,7 +127,7 @@ export default function AdminDashboard() {
     },
     {
       title: "Taxa de Conclusão",
-      value: "0%",
+      value: isLoading ? null : `${Math.round(stats?.completionRate ?? 0)}%`,
       description: "Média de progresso",
       icon: TrendingUp,
       color: "text-purple-600",
@@ -42,12 +140,12 @@ export default function AdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Visão geral da sua plataforma de info produtos
+          Visão geral da sua plataforma de cursos
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card key={stat.title}>
@@ -60,7 +158,11 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                {stat.value === null ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {stat.description}
                 </p>
@@ -86,11 +188,11 @@ export default function AdminDashboard() {
               <div>
                 <h4 className="font-medium">Criar um Produto</h4>
                 <p className="text-sm text-muted-foreground">
-                  Adicione seu primeiro info produto
+                  Adicione seu primeiro produto
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold">
                 2
@@ -102,7 +204,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold">
                 3
@@ -121,16 +223,47 @@ export default function AdminDashboard() {
           <CardHeader>
             <CardTitle>Atividade Recente</CardTitle>
             <CardDescription>
-              Últimas ações na plataforma
+              Últimas compras na plataforma
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Nenhuma atividade ainda</p>
-              <p className="text-sm mt-2">
-                Comece criando seu primeiro produto!
-              </p>
-            </div>
+            {isLoading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : stats?.recentPurchases.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Nenhuma atividade ainda</p>
+                <p className="text-sm mt-2">
+                  Comece criando seu primeiro produto!
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {stats?.recentPurchases.map((purchase: any) => (
+                  <li key={purchase.id} className="py-2 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {purchase.user?.full_name || purchase.user?.email || 'Usuário'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {purchase.product?.title}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">
+                        R$ {(purchase.amount_paid ?? 0).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {purchase.status}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
