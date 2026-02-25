@@ -42,6 +42,10 @@ export default defineConfig(({ mode }) => ({
           { src: "/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],
       },
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
