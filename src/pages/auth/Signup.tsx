@@ -100,11 +100,12 @@ export default function Signup() {
       }
 
       toast({
-        title: "Conta de administrador criada!",
-        description: "Você já pode fazer login no painel administrativo.",
+        title: "Conta criada com sucesso!",
+        description: "Verifique seu email e clique no link de confirmação antes de fazer login.",
+        duration: 8000,
       });
 
-      // Redirecionar para login admin
+      // Redirecionar para login admin (após confirmar email)
       navigate("/auth/admin-login");
 
     } catch (error: any) {

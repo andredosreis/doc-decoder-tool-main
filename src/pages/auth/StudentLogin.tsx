@@ -47,10 +47,17 @@ export default function StudentLogin() {
       }
     } catch (error: any) {
       console.error("Erro no login:", error);
+
+      const isEmailNotConfirmed =
+        error.message?.toLowerCase().includes("email not confirmed") ||
+        error.message?.toLowerCase().includes("not confirmed");
+
       toast({
         variant: "destructive",
-        title: "Erro ao fazer login",
-        description: "Email ou senha incorretos. Verifique suas credenciais.",
+        title: isEmailNotConfirmed ? "Email não confirmado" : "Erro ao fazer login",
+        description: isEmailNotConfirmed
+          ? "Você precisa confirmar seu email antes de acessar. Verifique sua caixa de entrada e clique no link de confirmação."
+          : "Email ou senha incorretos. Verifique suas credenciais.",
       });
     } finally {
       setLoading(false);
@@ -129,10 +136,7 @@ export default function StudentLogin() {
             </Button>
 
             <p className="text-sm text-center text-muted-foreground">
-              Não tem uma conta?{" "}
-              <Link to="/auth/signup" className="text-primary hover:underline font-medium">
-                Cadastre-se
-              </Link>
+              Acesse com as credenciais recebidas por email após sua compra.
             </p>
             
             <Link to="/" className="w-full">

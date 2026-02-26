@@ -58,10 +58,17 @@ export default function Login() {
       }
     } catch (error: any) {
       console.error("Erro no login:", error);
+
+      const isEmailNotConfirmed =
+        error.message?.toLowerCase().includes("email not confirmed") ||
+        error.message?.toLowerCase().includes("not confirmed");
+
       toast({
         variant: "destructive",
-        title: "Erro ao fazer login",
-        description: error.message || "Verifique suas credenciais e tente novamente.",
+        title: isEmailNotConfirmed ? "Email não confirmado" : "Erro ao fazer login",
+        description: isEmailNotConfirmed
+          ? "Confirme seu email antes de acessar. Verifique sua caixa de entrada e clique no link que enviamos."
+          : error.message || "Verifique suas credenciais e tente novamente.",
       });
     } finally {
       setLoading(false);
@@ -135,14 +142,21 @@ export default function Login() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-destructive hover:bg-destructive/90" 
+            <Button
+              type="submit"
+              className="w-full bg-destructive hover:bg-destructive/90"
               disabled={loading}
             >
               {loading ? "Entrando..." : "Acessar Painel Admin"}
             </Button>
-            
+
+            <p className="text-sm text-center text-muted-foreground">
+              Ainda não tem conta?{" "}
+              <Link to="/auth/signup" className="text-primary hover:underline font-medium">
+                Criar conta de admin
+              </Link>
+            </p>
+
             <Link to="/" className="w-full">
               <Button variant="ghost" className="w-full">
                 <ArrowLeft className="w-4 h-4 mr-2" />

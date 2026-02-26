@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Users, Settings, LogOut, CreditCard, Webhook } from "lucide-react";
+import { LayoutDashboard, Package, Users, GraduationCap, Settings, LogOut, CreditCard, Webhook } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import { Logo } from "@/components/ui/Logo";
 const menuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Produtos", url: "/admin/products", icon: Package },
+  { title: "Alunos", url: "/admin/users", icon: GraduationCap },
   { title: "Clientes", url: "/admin/customers", icon: Users },
   { title: "Compras", url: "/admin/purchases", icon: CreditCard },
   { title: "Configurações", url: "/admin/settings", icon: Settings },

@@ -76,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Plataforma <onboarding@resend.dev>",
+        from: "APP XPRO <noreply@appxpro.online>",
         to: [userEmail],
         subject: `🎉 Compra Aprovada - ${productTitle}`,
         html: `
