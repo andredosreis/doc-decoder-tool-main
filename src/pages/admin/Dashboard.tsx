@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Package, Users, DollarSign, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,7 +68,37 @@ async function fetchDashboardStats(adminId: string) {
     }
   }
 
-  // 6. Atividade recente (últimas 5 compras)
+  // 6. Progresso médio por curso
+  const { data: productsWithTitle } = await supabase
+    .from('products')
+    .select('id, title')
+    .eq('admin_id', adminId);
+
+  const courseEngagement = await Promise.all(
+    (productsWithTitle ?? []).map(async (product) => {
+      const { data: productModules } = await supabase
+        .from('modules')
+        .select('id')
+        .eq('product_id', product.id);
+
+      const modIds = productModules?.map(m => m.id) ?? [];
+      if (modIds.length === 0) return { title: product.title, avgProgress: 0, totalStudents: 0 };
+
+      const { data: progress } = await supabase
+        .from('user_progress')
+        .select('progress_percentage, user_id')
+        .in('module_id', modIds);
+
+      const totalStudents = new Set(progress?.map(p => p.user_id)).size;
+      const avgProgress = progress && progress.length > 0
+        ? progress.reduce((sum, p) => sum + (p.progress_percentage ?? 0), 0) / progress.length
+        : 0;
+
+      return { title: product.title, avgProgress: Math.round(avgProgress), totalStudents };
+    })
+  );
+
+  // 7. Atividade recente (últimas 5 compras)
   const { data: recentPurchases } = await supabase
     .from('purchases')
     .select(`
@@ -87,6 +118,7 @@ async function fetchDashboardStats(adminId: string) {
     activeStudents,
     monthlyRevenue,
     completionRate,
+    courseEngagement,
     recentPurchases: recentPurchases ?? [],
   };
 }
@@ -171,6 +203,30 @@ export default function AdminDashboard() {
           );
         })}
       </div>
+
+      {/* Engajamento por curso */}
+      {!isLoading && stats?.courseEngagement && stats.courseEngagement.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Engajamento por Curso</CardTitle>
+            <CardDescription>Média de progresso dos alunos em cada curso</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {stats.courseEngagement.map((course) => (
+              <div key={course.title} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium truncate max-w-[60%]">{course.title}</span>
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <span>{course.totalStudents} aluno{course.totalStudents !== 1 ? 's' : ''}</span>
+                    <span className="font-semibold text-foreground">{course.avgProgress}%</span>
+                  </div>
+                </div>
+                <Progress value={course.avgProgress} className="h-2" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

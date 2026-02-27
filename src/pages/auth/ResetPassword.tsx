@@ -69,14 +69,23 @@ export default function ResetPassword() {
       if (error) throw error;
 
       toast({
-        title: "Senha redefinida!",
-        description: "Sua senha foi alterada com sucesso.",
+        title: "Senha definida!",
+        description: "Bem-vindo! Redirecionando para sua área...",
       });
 
-      // Redirecionar para o login após 2 segundos
+      // Verificar role e redirecionar para o lugar certo
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .maybeSingle();
+
       setTimeout(() => {
-        navigate("/auth/login");
-      }, 2000);
+        if (roleData?.role === 'admin') {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/student");
+        }
+      }, 1500);
     } catch (error: any) {
       console.error("Erro ao redefinir senha:", error);
       toast({
