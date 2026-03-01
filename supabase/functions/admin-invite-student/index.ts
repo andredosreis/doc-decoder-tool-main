@@ -95,6 +95,18 @@ const handler = async (req: Request): Promise<Response> => {
       userId = createdUser.user.id;
     }
 
+    // Garantir que o user_roles tenha role = 'user' (aluno)
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .upsert(
+        { user_id: userId, role: "user" },
+        { onConflict: "user_id" }
+      );
+
+    if (roleError) {
+      console.error("Erro ao definir role:", roleError);
+    }
+
     // Gerar link de redefinição de senha (serve como "primeiro acesso")
     const { data: linkData, error: linkError } =
       await supabaseAdmin.auth.admin.generateLink({

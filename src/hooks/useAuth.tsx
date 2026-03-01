@@ -76,7 +76,7 @@ export const ProtectedRoute = ({
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth/login');
+      navigate(requiredRole === 'user' ? '/auth/student-login' : '/auth/admin-login');
     } else if (!loading && user && requiredRole) {
       checkRole();
     } else if (!loading && user && !requiredRole) {
@@ -97,17 +97,20 @@ export const ProtectedRoute = ({
 
       if (data?.role === requiredRole) {
         setHasAccess(true);
-      } else {
+      } else if (data?.role) {
         // Redirecionar baseado na role do usuário
-        if (data?.role === 'admin') {
+        if (data.role === 'admin') {
           navigate('/admin/dashboard');
         } else {
           navigate('/student');
         }
+      } else {
+        // Sem role definida — redirecionar para login apropriado
+        navigate(requiredRole === 'user' ? '/auth/student-login' : '/auth/admin-login');
       }
     } catch (error) {
       console.error('Erro ao verificar role:', error);
-      navigate('/auth/login');
+      navigate(requiredRole === 'user' ? '/auth/student-login' : '/auth/admin-login');
     } finally {
       setRoleLoading(false);
     }
