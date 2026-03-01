@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +11,12 @@ import { Logo } from "@/components/ui/Logo";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isStudentInvite = new URLSearchParams(window.location.search).get("type") === "student";
+  const isStudentInvite = searchParams.get("type") === "student";
 
   useEffect(() => {
     // Verificar se há um token de recuperação válido
@@ -75,16 +76,17 @@ export default function ResetPassword() {
         description: "Bem-vindo! Redirecionando para sua área...",
       });
 
-      setTimeout(() => {
-        if (isStudentInvite) {
-          navigate("/student");
-        } else {
-          // Convite de recuperação de senha — verificar role
-          supabase.from('user_roles').select('role').maybeSingle().then(({ data }) => {
-            navigate(data?.role === 'admin' ? "/admin/dashboard" : "/student");
-          });
-        }
-      }, 1500);
+      if (isStudentInvite) {
+        // Convite de aluno — fazer logout do admin e redirecionar para login do aluno
+        await supabase.auth.signOut();
+        setTimeout(() => navigate("/auth/student-login"), 1500);
+      } else {
+        // Recuperação de senha normal — verificar role
+        const { data } = await supabase.from('user_roles').select('role').maybeSingle();
+        setTimeout(() => {
+          navigate(data?.role === 'admin' ? "/admin/dashboard" : "/student");
+        }, 1500);
+      }
     } catch (error: any) {
       console.error("Erro ao redefinir senha:", error);
       toast({
