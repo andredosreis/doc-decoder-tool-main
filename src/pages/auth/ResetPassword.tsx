@@ -15,6 +15,8 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isStudentInvite = new URLSearchParams(window.location.search).get("type") === "student";
+
   useEffect(() => {
     // Verificar se há um token de recuperação válido
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -73,17 +75,14 @@ export default function ResetPassword() {
         description: "Bem-vindo! Redirecionando para sua área...",
       });
 
-      // Verificar role e redirecionar para o lugar certo
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .maybeSingle();
-
       setTimeout(() => {
-        if (roleData?.role === 'admin') {
-          navigate("/admin/dashboard");
-        } else {
+        if (isStudentInvite) {
           navigate("/student");
+        } else {
+          // Convite de recuperação de senha — verificar role
+          supabase.from('user_roles').select('role').maybeSingle().then(({ data }) => {
+            navigate(data?.role === 'admin' ? "/admin/dashboard" : "/student");
+          });
         }
       }, 1500);
     } catch (error: any) {

@@ -65,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const appUrl = Deno.env.get("APP_URL") ?? "https://appxpro-mu.vercel.app";
+    const appUrl = Deno.env.get("APP_URL") ?? "https://www.appxpro.online";
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     let userId: string;
@@ -100,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
       await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: `${appUrl}/auth/reset-password` },
+        options: { redirectTo: `${appUrl}/auth/reset-password?type=student` },
       });
 
     if (linkError) {
