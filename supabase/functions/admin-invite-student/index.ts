@@ -100,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
       await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: `${appUrl}/auth/reset-password?type=student` },
+        options: { redirectTo: `${appUrl}/auth/student-setup` },
       });
 
     if (linkError) {

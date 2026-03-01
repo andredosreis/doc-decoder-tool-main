@@ -58,6 +58,7 @@ const App = () => (
             <Route path="/auth/signup" element={<Signup />} />
             <Route path="/auth/forgot-password" element={<ForgotPassword />} />
             <Route path="/auth/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/student-setup" element={<ResetPassword />} />
 
             {/* Redirects antigos para nova rota */}
             <Route path="/admin/login" element={<Navigate to="/auth/admin-login" replace />} />
