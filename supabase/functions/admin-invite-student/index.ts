@@ -96,15 +96,26 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Garantir que o user_roles tenha role = 'user' (aluno)
-    const { error: roleError } = await supabaseAdmin
+    // Primeiro tenta UPDATE (para casos onde o usuário já existe com role 'admin')
+    const { data: updatedRole, error: updateError } = await supabaseAdmin
       .from("user_roles")
-      .upsert(
-        { user_id: userId, role: "user" },
-        { onConflict: "user_id" }
-      );
+      .update({ role: "user" })
+      .eq("user_id", userId)
+      .select("user_id");
 
-    if (roleError) {
-      console.error("Erro ao definir role:", roleError);
+    if (updateError) {
+      console.error("Erro ao atualizar role:", updateError);
+    }
+
+    // Se UPDATE não encontrou nenhuma linha, INSERT (caso o trigger não tenha criado)
+    if (!updatedRole || updatedRole.length === 0) {
+      const { error: insertError } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: userId, role: "user" });
+
+      if (insertError) {
+        console.error("Erro ao inserir role:", insertError);
+      }
     }
 
     // Gerar link de redefinição de senha (serve como "primeiro acesso")

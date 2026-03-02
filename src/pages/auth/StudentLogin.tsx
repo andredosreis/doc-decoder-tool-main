@@ -38,12 +38,25 @@ export default function StudentLogin() {
       if (error) throw error;
 
       if (data.user) {
-        toast({
-          title: "Bem-vindo!",
-          description: "Acesso liberado aos seus cursos.",
-        });
+        // Verificar a role real do usuário para redirecionar corretamente
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .maybeSingle();
 
-        navigate("/student");
+        if (roleData?.role === 'admin') {
+          toast({
+            title: "Login realizado!",
+            description: "Redirecionando para o painel administrativo...",
+          });
+          navigate("/admin/dashboard");
+        } else {
+          toast({
+            title: "Bem-vindo!",
+            description: "Acesso liberado aos seus cursos.",
+          });
+          navigate("/student");
+        }
       }
     } catch (error: any) {
       console.error("Erro no login:", error);
