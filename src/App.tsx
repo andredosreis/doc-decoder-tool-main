@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Checkout from "./pages/Checkout";
@@ -30,6 +32,28 @@ import StudentCertificate from "./pages/student/Certificate";
 
 const queryClient = new QueryClient();
 
+// Redireciona para /auth/reset-password quando Supabase detecta um token de recovery
+// Isso cobre o caso em que o Supabase redireciona para a URL raiz ao invés de /auth/student-setup
+function AuthEventHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        const isOnResetPage = location.pathname.includes('reset-password') || location.pathname.includes('student-setup');
+        if (!isOnResetPage) {
+          navigate('/auth/reset-password', { replace: true });
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate, location.pathname]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -37,6 +61,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthEventHandler />
           <Routes>
             {/* Rota inicial - Redireciona para login admin */}
             <Route path="/" element={<Navigate to="/auth/admin-login" replace />} />

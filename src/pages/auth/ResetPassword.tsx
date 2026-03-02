@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,30 +11,52 @@ import { Logo } from "@/components/ui/Logo";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const isStudentInvite = location.pathname.includes("student-setup");
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Verificar se há um token de recuperação válido
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    // Aguardar a sessão ficar disponível (pode demorar se vier do hash da URL)
+    const checkSession = async () => {
+      // Primeiro tentar obter sessão existente
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSessionReady(true);
+        return;
+      }
+
+      // Se não encontrou, aguardar o evento de auth (o Supabase pode ainda estar processando o token da URL)
+      const timeout = setTimeout(() => {
+        // Após 5s sem sessão, link é inválido
         toast({
           variant: "destructive",
           title: "Link inválido",
           description: "Este link de recuperação é inválido ou expirou.",
         });
-        navigate("/auth/login");
-      }
-    });
+        navigate("/auth/student-login");
+      }, 5000);
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          clearTimeout(timeout);
+          setSessionReady(true);
+          subscription.unsubscribe();
+        }
+      });
+
+      return () => {
+        clearTimeout(timeout);
+        subscription.unsubscribe();
+      };
+    };
+
+    checkSession();
   }, [navigate]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!password || !confirmPassword) {
       toast({
         variant: "destructive",
@@ -71,21 +93,22 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
-      toast({
-        title: "Senha definida!",
-        description: "Bem-vindo! Redirecionando para sua área...",
-      });
+      // Sempre verificar a role real do usuário para redirecionar corretamente
+      const { data: roleData } = await supabase.from('user_roles').select('role').maybeSingle();
+      const userRole = roleData?.role;
 
-      if (isStudentInvite) {
-        // Convite de aluno — fazer logout do admin e redirecionar para login do aluno
-        await supabase.auth.signOut();
-        setTimeout(() => navigate("/auth/student-login"), 1500);
+      if (userRole === 'admin') {
+        toast({
+          title: "Senha definida!",
+          description: "Redirecionando para o painel administrativo...",
+        });
+        setTimeout(() => navigate("/admin/dashboard"), 1500);
       } else {
-        // Recuperação de senha normal — verificar role
-        const { data } = await supabase.from('user_roles').select('role').maybeSingle();
-        setTimeout(() => {
-          navigate(data?.role === 'admin' ? "/admin/dashboard" : "/student");
-        }, 1500);
+        toast({
+          title: "Senha definida!",
+          description: "Redirecionando para sua área de cursos...",
+        });
+        setTimeout(() => navigate("/student"), 1500);
       }
     } catch (error: any) {
       console.error("Erro ao redefinir senha:", error);
@@ -98,6 +121,14 @@ export default function ResetPassword() {
       setLoading(false);
     }
   };
+
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
