@@ -42,6 +42,7 @@ export default function StudentLogin() {
         const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
+          .eq('user_id', data.user.id)
           .maybeSingle();
 
         if (roleData?.role === 'admin') {
@@ -49,13 +50,13 @@ export default function StudentLogin() {
             title: "Login realizado!",
             description: "Redirecionando para o painel administrativo...",
           });
-          navigate("/admin/dashboard");
+          navigate("/admin/dashboard", { replace: true });
         } else {
           toast({
             title: "Bem-vindo!",
             description: "Acesso liberado aos seus cursos.",
           });
-          navigate("/student");
+          navigate("/student", { replace: true });
         }
       }
     } catch (error: any) {

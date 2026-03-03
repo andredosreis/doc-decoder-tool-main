@@ -17,42 +17,39 @@ export default function ResetPassword() {
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Aguardar a sessão ficar disponível (pode demorar se vier do hash da URL)
-    const checkSession = async () => {
-      // Primeiro tentar obter sessão existente
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setSessionReady(true);
-        return;
-      }
-
-      // Se não encontrou, aguardar o evento de auth (o Supabase pode ainda estar processando o token da URL)
-      const timeout = setTimeout(() => {
-        // Após 5s sem sessão, link é inválido
+    // Timeout de segurança: após 8s sem sessão, link é inválido
+    const timeout = setTimeout(() => {
+      if (!sessionReady) {
         toast({
           variant: "destructive",
           title: "Link inválido",
           description: "Este link de recuperação é inválido ou expirou.",
         });
-        navigate("/auth/student-login");
-      }, 5000);
+        navigate("/auth/student-login", { replace: true });
+      }
+    }, 8000);
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) {
-          clearTimeout(timeout);
-          setSessionReady(true);
-          subscription.unsubscribe();
-        }
-      });
-
-      return () => {
+    // Usar onAuthStateChange como fonte primária (funciona com PKCE e implicit)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         clearTimeout(timeout);
-        subscription.unsubscribe();
-      };
-    };
+        setSessionReady(true);
+      }
+    });
 
-    checkSession();
-  }, [navigate]);
+    // Também checar sessão existente (caso de reload da página)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        clearTimeout(timeout);
+        setSessionReady(true);
+      }
+    });
+
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
+  }, [navigate, sessionReady]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +90,16 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
+      // Obter o usuário atual para buscar a role com filtro explícito
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Sempre verificar a role real do usuário para redirecionar corretamente
-      const { data: roleData } = await supabase.from('user_roles').select('role').maybeSingle();
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user?.id ?? '')
+        .maybeSingle();
+
       const userRole = roleData?.role;
 
       if (userRole === 'admin') {
@@ -102,13 +107,13 @@ export default function ResetPassword() {
           title: "Senha definida!",
           description: "Redirecionando para o painel administrativo...",
         });
-        setTimeout(() => navigate("/admin/dashboard"), 1500);
+        setTimeout(() => navigate("/admin/dashboard", { replace: true }), 1500);
       } else {
         toast({
           title: "Senha definida!",
           description: "Redirecionando para sua área de cursos...",
         });
-        setTimeout(() => navigate("/student"), 1500);
+        setTimeout(() => navigate("/student", { replace: true }), 1500);
       }
     } catch (error: any) {
       console.error("Erro ao redefinir senha:", error);

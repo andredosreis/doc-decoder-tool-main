@@ -48,13 +48,26 @@ export default function Login() {
       if (error) throw error;
 
       if (data.user) {
-        toast({
-          title: "Login realizado!",
-          description: "Redirecionando...",
-        });
+        // Verificar a role real do usuário para redirecionar corretamente
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
 
-        // Redirecionar para o admin dashboard
-        navigate("/admin/dashboard");
+        if (roleData?.role === 'user') {
+          toast({
+            title: "Login realizado!",
+            description: "Redirecionando para sua área de cursos...",
+          });
+          navigate("/student", { replace: true });
+        } else {
+          toast({
+            title: "Login realizado!",
+            description: "Redirecionando...",
+          });
+          navigate("/admin/dashboard", { replace: true });
+        }
       }
     } catch (error: any) {
       console.error("Erro no login:", error);
