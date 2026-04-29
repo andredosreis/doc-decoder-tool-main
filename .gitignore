@@ -16,6 +16,14 @@ dist-ssr
 *.local
 build
 
+# Vite PWA dev bundles (workbox runtime cache)
+dev-dist
+playwright-report
+test-results
+
+# TypeScript incremental build cache (regenerado a cada `tsc -b`)
+*.tsbuildinfo
+
 # Environment variables
 .env
 .env.local
