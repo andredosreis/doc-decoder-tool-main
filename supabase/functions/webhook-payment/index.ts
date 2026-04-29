@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { findProductByPayload } from "../_shared/find-product-by-payload.ts";
 import { validateWebhookSignature } from "../_shared/verify-webhook-signature.ts";
 import { decidePurchaseAction } from "../_shared/decide-purchase-action.ts";
+import { validateWebhookPayload, WebhookValidationError } from "../_shared/validate-webhook-payload.ts";
 
 /**
  * WEBHOOK DE PAGAMENTOS
@@ -121,12 +122,20 @@ serve(async (req) => {
       }
     );
 
-    const payload: WebhookPayload = await req.json();
-    console.log('Webhook received:', JSON.stringify(payload, null, 2));
+    const raw = await req.json();
+    console.log('Webhook received:', JSON.stringify(raw, null, 2));
 
-    // Validar dados obrigatórios
-    if (!payload.customer_email || !payload.transaction_id) {
-      throw new Error('Missing required fields: customer_email or transaction_id');
+    let payload: WebhookPayload;
+    try {
+      payload = validateWebhookPayload(raw) as WebhookPayload;
+    } catch (e) {
+      if (e instanceof WebhookValidationError) {
+        return new Response(
+          JSON.stringify({ error: e.message, success: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      throw e;
     }
 
     // Buscar ou criar usuário

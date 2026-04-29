@@ -1,20 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { isServiceRoleAuthorized } from "../_shared/service-role-auth.ts";
+import { validateNotificationRequest, NotificationValidationError } from "../_shared/validate-notification-request.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-interface NotificationRequest {
-  userId: string;
-  title: string;
-  message: string;
-  type?: 'info' | 'success' | 'warning' | 'error';
-  actionUrl?: string;
-}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -36,7 +29,20 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { userId, title, message, type = 'info', actionUrl }: NotificationRequest = await req.json();
+    const raw = await req.json();
+    let validated: ReturnType<typeof validateNotificationRequest>;
+    try {
+      validated = validateNotificationRequest(raw);
+    } catch (e) {
+      if (e instanceof NotificationValidationError) {
+        return new Response(
+          JSON.stringify({ error: e.message }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      throw e;
+    }
+    const { userId, title, message, type, actionUrl } = validated;
 
     console.log("Creating notification for user:", userId);
 

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { getOwnedProduct } from "../_shared/owns-product.ts";
 import { findOrCreateInvitedUser } from "../_shared/find-or-create-invited-user.ts";
+import { validateAndNormalizeInviteEmail, InviteEmailValidationError } from "../_shared/validate-invite-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,13 +59,19 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, full_name, product_id }: InviteRequest = await req.json();
+    const { email: rawEmail, full_name, product_id }: InviteRequest = await req.json();
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: "Email é obrigatório" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    let email: string;
+    try {
+      email = validateAndNormalizeInviteEmail(rawEmail);
+    } catch (e) {
+      if (e instanceof InviteEmailValidationError) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      throw e;
     }
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://www.appxpro.online";
