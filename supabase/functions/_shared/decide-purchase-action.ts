@@ -11,14 +11,6 @@
  *
  * Mantida pure (sem I/O) para que os testes Tier 1 cubram todas as transições
  * de status sem precisar mock do cliente Supabase nem de fetch.
- *
- * NOTA SOBRE `approvedAt` (bug conhecido, não fixado nesta ronda):
- * O comportamento actual nula `approved_at` sempre que `status !== 'approved'`,
- * o que perde o timestamp original em downgrade `approved → cancelled`. Esta
- * função preserva o comportamento (devolve `null`) para manter parity com
- * `webhook-payment/index.ts` enquanto o fix não landa. Quando o fix vier, o
- * teste `(5)` em `decide-purchase-action.test.ts` precisa ser actualizado para
- * exigir preservação do `approved_at` original.
  */
 
 export type PurchaseStatus = "pending" | "approved" | "cancelled" | "refunded";
@@ -26,6 +18,7 @@ export type PurchaseStatus = "pending" | "approved" | "cancelled" | "refunded";
 export interface ExistingPurchase {
   id: string;
   status: PurchaseStatus;
+  approved_at?: string | null;
 }
 
 export interface DecisionPayload {
@@ -62,7 +55,7 @@ export function decidePurchaseAction(
     existingId: input.existing?.id,
     status: input.payload.status,
     amountPaid: input.payload.amount,
-    approvedAt: isApproved ? now() : null,
+    approvedAt: isApproved ? now() : (input.existing?.approved_at ?? null),
     shouldFireApprovalEmail: becomingApprovedNow,
   };
 }

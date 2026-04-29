@@ -53,19 +53,18 @@ export function checkCertificateEligibility(
 /**
  * Gera número de certificado no formato `CERT-YYYY-XXXXXX`.
  *
- * Estado actual (v0): `Math.random()` com 6 dígitos numéricos.
- * Estado alvo (FDD-004): `crypto.getRandomValues` + retry em colisão na
- * constraint UNIQUE de `certificate_number` (Bug C8).
+ * Usa `crypto.getRandomValues` (CSPRNG) em vez de `Math.random` para
+ * eliminar o risco de colisão via gerador não-criptográfico (Bug C8).
+ * O retry em colisão de constraint UNIQUE chega no FDD-004 PR 2.
  *
- * Esta versão preserva o comportamento de v0 e aceita um `now` injectável
- * para que o teste de formato seja determinístico no campo do ano.
+ * Aceita um `now` injectável para que o teste de formato seja determinístico.
  */
 export const CERTIFICATE_NUMBER_PATTERN = /^CERT-\d{4}-\d{6}$/;
 
 export function generateCertNumber(now: Date = new Date()): string {
   const year = now.getFullYear();
-  const random = Math.floor(Math.random() * 1_000_000)
-    .toString()
-    .padStart(6, "0");
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  const random = (arr[0] % 1_000_000).toString().padStart(6, "0");
   return `CERT-${year}-${random}`;
 }

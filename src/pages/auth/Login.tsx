@@ -55,18 +55,18 @@ export default function Login() {
           .eq('user_id', data.user.id)
           .maybeSingle();
 
-        if (roleData?.role === 'user') {
-          toast({
-            title: "Login realizado!",
-            description: "Redirecionando para sua área de cursos...",
-          });
-          navigate("/student", { replace: true });
-        } else {
+        if (roleData?.role === 'admin') {
           toast({
             title: "Login realizado!",
             description: "Redirecionando...",
           });
           navigate("/admin/dashboard", { replace: true });
+        } else {
+          toast({
+            title: "Login realizado!",
+            description: "Redirecionando para sua área de cursos...",
+          });
+          navigate("/student", { replace: true });
         }
       }
     } catch (error: any) {

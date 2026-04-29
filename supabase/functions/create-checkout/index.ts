@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { buildCheckoutMetadata } from "../_shared/checkout-metadata.ts";
+import { validateCheckoutRequest, CheckoutValidationError } from "../_shared/validate-checkout-request.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,15 +26,26 @@ serve(async (req) => {
   );
 
   try {
-    const { plan, fullName, email } = await req.json();
+    const raw = await req.json();
+
+    let validated: ReturnType<typeof validateCheckoutRequest>;
+    try {
+      validated = validateCheckoutRequest(raw);
+    } catch (e) {
+      if (e instanceof CheckoutValidationError) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+      throw e;
+    }
+    const { plan, email } = validated;
+    const fullName = (raw as Record<string, unknown>).fullName as string | undefined;
     console.log("Creating checkout for plan:", plan, "email:", email);
 
-    if (!plan || !PRICE_IDS[plan as keyof typeof PRICE_IDS]) {
-      throw new Error("Invalid plan selected");
-    }
-
-    if (!email) {
-      throw new Error("Email is required");
+    if (!PRICE_IDS[plan as keyof typeof PRICE_IDS]) {
+      throw new Error("Plan not configured");
     }
 
     // Initialize Stripe
