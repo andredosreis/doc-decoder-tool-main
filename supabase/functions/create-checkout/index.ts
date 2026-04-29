@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { buildCheckoutMetadata } from "../_shared/checkout-metadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,15 +25,15 @@ serve(async (req) => {
   );
 
   try {
-    const { plan, fullName, email, password } = await req.json();
+    const { plan, fullName, email } = await req.json();
     console.log("Creating checkout for plan:", plan, "email:", email);
 
     if (!plan || !PRICE_IDS[plan as keyof typeof PRICE_IDS]) {
       throw new Error("Invalid plan selected");
     }
 
-    if (!password || password.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+    if (!email) {
+      throw new Error("Email is required");
     }
 
     // Initialize Stripe
@@ -50,7 +51,10 @@ serve(async (req) => {
       console.log("Creating new Stripe customer");
     }
 
-    // Create checkout session (user will be created AFTER payment)
+    // Create checkout session (user will be created AFTER payment via process-payment).
+    // IMPORTANT: never store password in Stripe metadata (plaintext). The post-payment
+    // flow in process-payment uses auth.admin.createUser without password and sends
+    // a recovery link by email; the customer sets their own password.
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : email,
@@ -63,12 +67,7 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/checkout?plan=${plan}`,
-      metadata: {
-        email: email,
-        full_name: fullName,
-        plan: plan,
-        password: password, // Store password securely in metadata
-      },
+      metadata: buildCheckoutMetadata({ email, fullName, plan }),
     });
 
     console.log("Checkout session created:", session.id);

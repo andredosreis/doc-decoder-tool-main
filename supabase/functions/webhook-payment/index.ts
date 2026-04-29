@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { findProductByPayload } from "../_shared/find-product-by-payload.ts";
+import { validateWebhookSignature } from "../_shared/verify-webhook-signature.ts";
+import { decidePurchaseAction } from "../_shared/decide-purchase-action.ts";
 
 /**
  * WEBHOOK DE PAGAMENTOS
@@ -89,62 +92,6 @@ interface WebhookPayload {
   status: 'approved' | 'pending' | 'cancelled' | 'refunded';
 }
 
-/**
- * Compara duas strings byte-a-byte em tempo constante para evitar timing attacks.
- * Retorna true apenas se forem idênticas em comprimento e conteúdo.
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  const encoder = new TextEncoder();
-  const aBytes = encoder.encode(a);
-  const bBytes = encoder.encode(b);
-
-  // Lengths must match; we still iterate the full length to avoid leaking via timing
-  if (aBytes.length !== bBytes.length) {
-    return false;
-  }
-
-  let result = 0;
-  for (let i = 0; i < aBytes.length; i++) {
-    result |= aBytes[i] ^ bBytes[i];
-  }
-  return result === 0;
-}
-
-/**
- * Validates the incoming webhook request against WEBHOOK_SECRET.
- *
- * The caller must send the shared secret as the value of the
- * `x-webhook-signature` header.  Returns false (→ 401) when:
- *   - WEBHOOK_SECRET env var is not configured
- *   - Header is absent
- *   - Header value does not match WEBHOOK_SECRET
- */
-function validateWebhookSignature(req: Request): boolean {
-  const webhookSecret = Deno.env.get('WEBHOOK_SECRET');
-
-  // If the secret is not configured, reject all requests to avoid silently
-  // running in an unauthenticated state.
-  if (!webhookSecret) {
-    console.error('WEBHOOK_SECRET environment variable is not set. All webhook requests will be rejected.');
-    return false;
-  }
-
-  const signature = req.headers.get('x-webhook-signature');
-
-  if (!signature) {
-    console.warn('Webhook rejected: missing x-webhook-signature header');
-    return false;
-  }
-
-  const valid = timingSafeEqual(signature, webhookSecret);
-
-  if (!valid) {
-    console.warn('Webhook rejected: invalid x-webhook-signature header');
-  }
-
-  return valid;
-}
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -210,15 +157,15 @@ serve(async (req) => {
       console.log('New user created:', userId);
     }
 
-    // Buscar produto baseado no external_product_id ou product_id
-    const { data: product, error: productError } = await supabaseAdmin
-      .from('products')
-      .select('id')
-      .or(`external_product_id.eq.${payload.external_product_id},id.eq.${payload.product_id}`)
-      .maybeSingle();
-
-    if (productError || !product) {
-      console.error('Product not found:', { external_product_id: payload.external_product_id, product_id: payload.product_id });
+    // Buscar produto baseado no external_product_id ou product_id.
+    // Lógica extraída para `findProductByPayload` (testável; ver Bug 3 do
+    // TEST-GAP-ANALYSIS para o histórico do .or() injection).
+    const product = await findProductByPayload(supabaseAdmin, payload);
+    if (!product) {
+      console.error('Product not found:', {
+        external_product_id: payload.external_product_id,
+        product_id: payload.product_id,
+      });
       throw new Error('Product not found');
     }
 
@@ -229,120 +176,90 @@ serve(async (req) => {
       .eq('external_transaction_id', payload.transaction_id)
       .maybeSingle();
 
-    if (existingPurchase) {
-      // Atualizar compra existente
+    // Decisão idempotente: INSERT vs UPDATE + se dispara email/notificação.
+    // A lógica está em `decidePurchaseAction` (testada por unit tests).
+    const decision = decidePurchaseAction({
+      payload: { status: payload.status, amount: payload.amount },
+      existing: existingPurchase,
+    });
+
+    let purchaseId: string;
+
+    if (decision.action === 'UPDATE') {
       const { error: updateError } = await supabaseAdmin
         .from('purchases')
         .update({
-          status: payload.status,
-          amount_paid: payload.amount,
-          approved_at: payload.status === 'approved' ? new Date().toISOString() : null,
+          status: decision.status,
+          amount_paid: decision.amountPaid,
+          approved_at: decision.approvedAt,
         })
-        .eq('id', existingPurchase.id);
+        .eq('id', decision.existingId!);
 
       if (updateError) throw updateError;
-
-      console.log('Purchase updated:', existingPurchase.id);
-
-      // Enviar email se status mudou para approved
-      if (payload.status === 'approved' && existingPurchase.status !== 'approved') {
-        try {
-          await supabaseAdmin.functions.invoke('send-purchase-confirmation', {
-            body: { purchaseId: existingPurchase.id }
-          });
-          console.log('Confirmation email sent for purchase:', existingPurchase.id);
-        } catch (emailError) {
-          console.error('Error sending email:', emailError);
-          // Não bloqueia o webhook se o email falhar
-        }
-
-        // Enviar notificação
-        try {
-          await supabaseAdmin.functions.invoke('send-notification', {
-            body: {
-              userId: userId,
-              title: 'Pagamento Aprovado!',
-              message: `Seu pagamento foi confirmado. Você já tem acesso ao curso!`,
-              type: 'success'
-            }
-          });
-          console.log('Notification sent');
-        } catch (notifError) {
-          console.error('Error sending notification:', notifError);
-        }
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Purchase updated',
-          purchase_id: existingPurchase.id
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
-      );
+      purchaseId = decision.existingId!;
+      console.log('Purchase updated:', purchaseId);
     } else {
-      // Criar nova compra
       const { data: newPurchase, error: purchaseError } = await supabaseAdmin
         .from('purchases')
         .insert({
           user_id: userId,
           product_id: product.id,
-          status: payload.status,
-          amount_paid: payload.amount,
           payment_platform: payload.platform,
           external_transaction_id: payload.transaction_id,
-          approved_at: payload.status === 'approved' ? new Date().toISOString() : null,
+          status: decision.status,
+          amount_paid: decision.amountPaid,
+          approved_at: decision.approvedAt,
         })
         .select()
         .single();
 
       if (purchaseError) throw purchaseError;
+      purchaseId = newPurchase.id;
+      console.log('New purchase created:', purchaseId);
+    }
 
-      console.log('New purchase created:', newPurchase.id);
-
-      // Enviar email se já foi criado aprovado
-      if (payload.status === 'approved') {
-        try {
-          await supabaseAdmin.functions.invoke('send-purchase-confirmation', {
-            body: { purchaseId: newPurchase.id }
-          });
-          console.log('Confirmation email sent for new purchase:', newPurchase.id);
-        } catch (emailError) {
-          console.error('Error sending email:', emailError);
-          // Não bloqueia o webhook se o email falhar
-        }
-
-        // Enviar notificação
-        try {
-          await supabaseAdmin.functions.invoke('send-notification', {
-            body: {
-              userId: userId,
-              title: 'Bem-vindo!',
-              message: `Sua compra foi aprovada. Comece agora seus estudos!`,
-              type: 'success'
-            }
-          });
-          console.log('Notification sent');
-        } catch (notifError) {
-          console.error('Error sending notification:', notifError);
-        }
+    // Email + notificação apenas na primeira transição para approved.
+    // Replays do mesmo payload approved ou downgrades não re-disparam (idempotência).
+    if (decision.shouldFireApprovalEmail) {
+      try {
+        await supabaseAdmin.functions.invoke('send-purchase-confirmation', {
+          body: { purchaseId },
+        });
+        console.log('Confirmation email sent for purchase:', purchaseId);
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+        // Não bloqueia o webhook se o email falhar
       }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Purchase created',
-          purchase_id: newPurchase.id
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 201
-        }
-      );
+      const isNew = decision.action === 'INSERT';
+      try {
+        await supabaseAdmin.functions.invoke('send-notification', {
+          body: {
+            userId,
+            title: isNew ? 'Bem-vindo!' : 'Pagamento Aprovado!',
+            message: isNew
+              ? 'Sua compra foi aprovada. Comece agora seus estudos!'
+              : 'Seu pagamento foi confirmado. Você já tem acesso ao curso!',
+            type: 'success',
+          },
+        });
+        console.log('Notification sent');
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
     }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: decision.action === 'INSERT' ? 'Purchase created' : 'Purchase updated',
+        purchase_id: purchaseId,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: decision.action === 'INSERT' ? 201 : 200,
+      }
+    );
 
   } catch (error) {
     console.error('Webhook error:', error);

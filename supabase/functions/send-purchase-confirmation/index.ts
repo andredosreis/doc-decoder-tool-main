@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { isServiceRoleAuthorized } from "../_shared/service-role-auth.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -18,9 +19,15 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
-    return new Response('Unauthorized', { status: 401 });
+  // Service-role bearer required: this function is invoked server-to-server
+  // (e.g. from webhook-payment) and must reject any anon or user-JWT request.
+  if (
+    !isServiceRoleAuthorized(
+      req.headers.get("Authorization"),
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    )
+  ) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
   try {

@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { decideRoleAccess } from '@/lib/role-access';
 
 interface AuthContextType {
   user: User | null;
@@ -95,18 +96,16 @@ export const ProtectedRoute = ({
 
       if (error) throw error;
 
-      if (data?.role === requiredRole) {
+      // Decisão pura sobre o que fazer; ver `lib/role-access.ts` para os
+      // branches cobertos por testes Tier 1.
+      const action = decideRoleAccess(
+        data?.role as 'admin' | 'user' | null | undefined,
+        requiredRole!,
+      );
+      if (action.type === 'ALLOW') {
         setHasAccess(true);
-      } else if (data?.role) {
-        // Redirecionar baseado na role do usuário
-        if (data.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/student');
-        }
       } else {
-        // Sem role definida — redirecionar para login apropriado
-        navigate(requiredRole === 'user' ? '/auth/student-login' : '/auth/admin-login');
+        navigate(action.target);
       }
     } catch (error) {
       console.error('Erro ao verificar role:', error);
