@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "test:functions": "deno test --allow-read --allow-env=WEBHOOK_SECRET supabase/functions/_shared/"
+  },
+  "lint": {
+    "include": ["supabase/functions/"]
+  },
+  "fmt": {
+    "include": ["supabase/functions/"]
+  },
+  "exclude": ["node_modules", "dist", "e2e"]
+}

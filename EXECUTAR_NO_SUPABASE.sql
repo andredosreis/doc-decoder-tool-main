@@ -128,7 +128,8 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Admins can manage own products"
   ON public.products FOR ALL
-  USING (auth.uid() = admin_id);
+  USING (auth.uid() = admin_id)
+  WITH CHECK (auth.uid() = admin_id);
 
 CREATE POLICY "Users can view active products"
   ON public.products FOR SELECT
@@ -194,6 +195,13 @@ CREATE POLICY "Admins can manage product modules"
     EXISTS (
       SELECT 1 FROM public.products
       WHERE products.id = modules.product_id
+        AND products.admin_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.products
+      WHERE products.id = modules.product_id
       AND products.admin_id = auth.uid()
     )
   );
@@ -211,6 +219,11 @@ CREATE POLICY "Users can view purchased modules"
     )
   );
 
+
+-- Nota sobre `modules.video_url`: armazena a URL de embed do YouTube
+-- (ex: https://www.youtube.com/embed/<video_id>), não um path no Storage.
+-- O frontend renderiza directamente via <iframe>. Apenas `modules.pdf_url`
+-- aponta para um path no bucket `module-content`.
 
 -- 📊 PROGRESSO DO USUÁRIO
 CREATE TABLE public.user_progress (
@@ -230,7 +243,8 @@ ALTER TABLE public.user_progress ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage own progress"
   ON public.user_progress FOR ALL
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 
 -- 🏆 CERTIFICADOS

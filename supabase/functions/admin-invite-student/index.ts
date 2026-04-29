@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { getOwnedProduct } from "../_shared/owns-product.ts";
+import { findOrCreateInvitedUser } from "../_shared/find-or-create-invited-user.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,32 +70,14 @@ const handler = async (req: Request): Promise<Response> => {
     const appUrl = Deno.env.get("APP_URL") ?? "https://www.appxpro.online";
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    let userId: string;
-
-    // Verificar se usuário já existe
-    const { data: existingProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("email", email.toLowerCase())
-      .maybeSingle();
-
-    if (existingProfile) {
-      userId = existingProfile.id;
-    } else {
-      // Criar usuário com email auto-confirmado (sem depender do SMTP do Supabase)
-      const { data: createdUser, error: createError } =
-        await supabaseAdmin.auth.admin.createUser({
-          email,
-          email_confirm: true,
-          user_metadata: { full_name: full_name ?? "" },
-        });
-
-      if (createError) {
-        throw new Error(`Erro ao criar usuário: ${createError.message}`);
-      }
-
-      userId = createdUser.user.id;
-    }
+    // Localizar ou criar o utilizador alvo (lookup por profiles + create
+    // via Admin Auth API se ainda não existir). Lógica em `_shared/` para
+    // ser unit-tested. Email é lowercased internamente.
+    const { userId } = await findOrCreateInvitedUser(
+      supabaseAdmin,
+      email,
+      full_name ?? "",
+    );
 
     // Garantir que o user_roles tenha role = 'user' (aluno)
     // Primeiro tenta UPDATE (para casos onde o usuário já existe com role 'admin')
@@ -187,8 +171,37 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("id", userId);
     }
 
-    // Criar purchase aprovada se um produto foi informado
+    // Criar purchase aprovada se um produto foi informado.
+    //
+    // NOTA DE SEGURANÇA (Bug 4 do TEST-GAP-ANALYSIS):
+    // Anteriormente o upsert era executado sem validar que `product_id`
+    // pertencia ao admin convidador. Como esta função usa service-role,
+    // a RLS de `products` não bloqueava: admin A podia conceder acesso ao
+    // produto de admin B passando o UUID. Cross-tenant grant.
+    //
+    // Fix: validar ownership por SELECT explícito em `products` filtrando
+    // por `admin_id = user.id` antes do upsert. Sem match → 403.
     if (product_id) {
+      let ownedProduct: { id: string } | null = null;
+      try {
+        ownedProduct = await getOwnedProduct(supabaseAdmin, user.id, product_id);
+      } catch (ownError) {
+        console.error("Erro ao validar ownership do produto:", ownError);
+        throw new Error("Falha a validar produto");
+      }
+
+      if (!ownedProduct) {
+        return new Response(
+          JSON.stringify({
+            error: "Produto não encontrado ou não pertence a este admin",
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+
       const { error: purchaseError } = await supabaseAdmin
         .from("purchases")
         .upsert(
@@ -204,6 +217,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (purchaseError) {
         console.error("Erro ao criar purchase:", purchaseError);
+        throw new Error(`Falha ao criar purchase: ${purchaseError.message}`);
       }
     }
 

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import {
+  checkCertificateEligibility,
+  generateCertNumber,
+} from "../_shared/certificate-eligibility.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,22 +49,31 @@ const handler = async (req: Request): Promise<Response> => {
       .select("id")
       .eq("product_id", productId);
 
-    if (!modules || modules.length === 0) {
-      throw new Error("Product has no modules");
+    const moduleIds = (modules ?? []).map((m) => m.id);
+
+    // Buscar progresso só se houver módulos (evita query desnecessária)
+    let completedCount = 0;
+    if (moduleIds.length > 0) {
+      const { data: progress } = await supabase
+        .from("user_progress")
+        .select("completed")
+        .eq("user_id", user.id)
+        .in("module_id", moduleIds);
+      completedCount = progress?.filter((p) => p.completed).length ?? 0;
     }
 
-    // Verificar progresso do usuário
-    const { data: progress } = await supabase
-      .from("user_progress")
-      .select("completed")
-      .eq("user_id", user.id)
-      .in("module_id", modules.map(m => m.id));
+    const eligibility = checkCertificateEligibility(
+      moduleIds.length,
+      completedCount,
+    );
 
-    const completedModules = progress?.filter(p => p.completed).length || 0;
-    const completionPercentage = (completedModules / modules.length) * 100;
-
-    if (completionPercentage < 100) {
-      throw new Error(`Product not completed. Progress: ${completionPercentage.toFixed(0)}%`);
+    if (!eligibility.eligible) {
+      if (eligibility.reason === "PRODUCT_HAS_NO_MODULES") {
+        throw new Error("Product has no modules");
+      }
+      throw new Error(
+        `Product not completed. Progress: ${eligibility.completionPercentage.toFixed(0)}%`,
+      );
     }
 
     // Buscar dados do produto e usuário
@@ -113,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         user_id: user.id,
         product_id: productId,
-        certificate_number: await generateCertNumber(),
+        certificate_number: generateCertNumber(),
         completed_at: new Date().toISOString(),
       })
       .select()
@@ -166,11 +179,5 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-async function generateCertNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 999999).toString().padStart(6, '0');
-  return `CERT-${year}-${random}`;
-}
 
 serve(handler);
