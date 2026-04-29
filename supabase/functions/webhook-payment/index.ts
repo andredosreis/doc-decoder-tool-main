@@ -172,7 +172,7 @@ serve(async (req) => {
     // Verificar se a compra já existe
     const { data: existingPurchase } = await supabaseAdmin
       .from('purchases')
-      .select('id, status')
+      .select('id, status, approved_at')
       .eq('external_transaction_id', payload.transaction_id)
       .maybeSingle();
 

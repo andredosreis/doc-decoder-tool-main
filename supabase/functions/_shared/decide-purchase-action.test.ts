@@ -56,27 +56,35 @@ describe("decidePurchaseAction — Tier 1 regression (webhook idempotency)", () 
     assertEquals(decision.shouldFireApprovalEmail, false);
   });
 
-  it("(5) existing approved → cancelled → UPDATE, NO approval email", () => {
-    // Status downgrade: customer cancelled or refunded. Email/notification
-    // for approval must not fire. Note: current implementation also nulls
-    // approved_at on downgrade (known issue, documented in helper docstring;
-    // separate fix). This test only asserts the email-gating contract.
-    const existing: ExistingPurchase = { id: "purchase-1", status: "approved" };
+  it("(5) existing approved → cancelled → UPDATE, NO approval email, preserves approved_at", () => {
+    const ORIGINAL_APPROVED_AT = "2026-01-15T10:00:00.000Z";
+    const existing: ExistingPurchase = {
+      id: "purchase-1",
+      status: "approved",
+      approved_at: ORIGINAL_APPROVED_AT,
+    };
     const decision = decidePurchaseAction(
       { payload: { status: "cancelled", amount: 0 }, existing },
       now,
     );
     assertEquals(decision.action, "UPDATE");
     assertEquals(decision.shouldFireApprovalEmail, false);
+    assertEquals(decision.approvedAt, ORIGINAL_APPROVED_AT);
   });
 
-  it("(6) existing approved → refunded → UPDATE, NO approval email", () => {
-    const existing: ExistingPurchase = { id: "purchase-1", status: "approved" };
+  it("(6) existing approved → refunded → UPDATE, NO approval email, preserves approved_at", () => {
+    const ORIGINAL_APPROVED_AT = "2026-01-15T10:00:00.000Z";
+    const existing: ExistingPurchase = {
+      id: "purchase-1",
+      status: "approved",
+      approved_at: ORIGINAL_APPROVED_AT,
+    };
     const decision = decidePurchaseAction(
       { payload: { status: "refunded", amount: 100 }, existing },
       now,
     );
     assertEquals(decision.action, "UPDATE");
     assertEquals(decision.shouldFireApprovalEmail, false);
+    assertEquals(decision.approvedAt, ORIGINAL_APPROVED_AT);
   });
 });

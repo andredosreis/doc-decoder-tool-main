@@ -47,7 +47,9 @@ const handler = async (req: Request): Promise<Response> => {
         id,
         amount_paid,
         approved_at,
+        product_id,
         user:profiles!purchases_user_id_fkey (
+          id,
           email,
           full_name
         ),
