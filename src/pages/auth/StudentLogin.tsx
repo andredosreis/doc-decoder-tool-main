@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { GraduationCap, Mail, Lock, ArrowLeft } from "lucide-react";
+import { GraduationCap, Mail, Lock, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 
 export default function StudentLogin() {
@@ -92,6 +92,10 @@ export default function StudentLogin() {
           <CardDescription className="text-base">
             Acesse sua conta e continue aprendendo
           </CardDescription>
+          <div className="flex items-center justify-center gap-2 mt-2 px-3 py-2 rounded-lg bg-muted/60 text-xs text-muted-foreground">
+            <MailCheck className="h-3.5 w-3.5 shrink-0" />
+            <span>Acesso exclusivo via convite do administrador</span>
+          </div>
         </CardHeader>
 
         <form onSubmit={handleLogin}>
@@ -150,7 +154,7 @@ export default function StudentLogin() {
             </Button>
 
             <p className="text-sm text-center text-muted-foreground">
-              Acesse com as credenciais recebidas por email após sua compra.
+              Utilize as credenciais recebidas no email de convite enviado pelo administrador.
             </p>
             
             <Link to="/" className="w-full">
